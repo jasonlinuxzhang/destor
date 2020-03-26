@@ -65,6 +65,9 @@ static void* lru_restore_thread(void *arg) {
 static void* read_recipe_thread(void *arg) {
 
 	int i, j, k;
+
+	printf ("files number:%ld\n", jcr.bv->number_of_files);
+
 	for (i = 0; i < jcr.bv->number_of_files; i++) {
 		TIMER_DECLARE(1);
 		TIMER_BEGIN(1);
@@ -79,8 +82,9 @@ static void* read_recipe_thread(void *arg) {
 
 		sync_queue_push(restore_recipe_queue, c);
 
-		printf(" fid=%s offset=%ld\n", r->filename, r->offset);
-		fseek(jcr.bv->recipe_fp, r->offset, SEEK_SET);
+		printf("fid=%s offset=%ld, really_offset=%d\n", r->filename, r->offset, ftell(jcr.bv->recipe_fp));
+		//fseek(jcr.bv->recipe_fp, r->offset, SEEK_SET);
+		
 		for (j = 0; j < r->chunknum; j++) {
 			TIMER_DECLARE(1);
 			TIMER_BEGIN(1);
@@ -91,6 +95,7 @@ static void* read_recipe_thread(void *arg) {
 			memcpy(&c->fp, &cp->fp, sizeof(fingerprint));
 			c->size = cp->size;
 			c->id = cp->id;
+			printf("\tchunk size:%d containerid:%lu\n", c->size, c->id);
 
 			TIMER_END(1, jcr.read_recipe_time);
 

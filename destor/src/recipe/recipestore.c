@@ -285,11 +285,13 @@ void free_backup_version(struct backupVersion *b) {
 void append_file_recipe_meta(struct backupVersion* b, struct fileRecipeMeta* r) {
 
 	int len = sdslen(r->filename);
-	static unsigned long fid = 0, count = 0;
 	int one_chunk_size = sizeof(fingerprint) + sizeof(containerid) + sizeof(int32_t);
 	static unsigned long recipe_offset = 0;
 
-	fid = count + destor.fid_start;
+	uint64_t fid = alloc_fid(r->filename);
+	if (0 == fid) {
+	    assert("alloc fid failed");
+	}
 	
 	if (recipe_offset == 0)
 		recipe_offset = one_chunk_size;
@@ -315,7 +317,6 @@ void append_file_recipe_meta(struct backupVersion* b, struct fileRecipeMeta* r) 
 	b->number_of_files++;
 	printf("append %ld(%s) in offset:%ld chunknum:%ld\n", fid, r->filename, recipe_offset, r->chunknum);
 	recipe_offset += (r->chunknum) * one_chunk_size; 
-	count++;
 }
 
 /*
@@ -462,8 +463,9 @@ struct chunkPointer* read_next_n_chunk_pointers(struct backupVersion* b, int n,
 
 	struct chunkPointer *cp = (struct chunkPointer *) malloc(
 			sizeof(struct chunkPointer) * num);
+
 	unsigned long offset = ftell(b->recipe_fp);
-	printf("recipe_fp offset=%ld\n", offset);
+	printf("\trecipe_fp offset=%ld\n", offset);
 
 	for (i = 0; i < num; i++) {
 		fread(&(cp[i].fp), sizeof(fingerprint), 1, b->recipe_fp);
@@ -472,6 +474,11 @@ struct chunkPointer* read_next_n_chunk_pointers(struct backupVersion* b, int n,
 		/* Ignore segment boundaries */
 		if(cp[i].id == 0 - CHUNK_SEGMENT_START || cp[i].id == 0 - CHUNK_SEGMENT_END)
 			i--;
+
+                char code[41] = {0};
+                hash2code(cp->fp, code);
+                printf("\t\tget chunk--- fp:%s conatiner:%lu ck_size:%d\n", code, cp->id, cp->size);
+
 	}
 
 	*k = num;

@@ -363,6 +363,11 @@ static struct metaEntry* get_metaentry_in_container_meta(
 struct chunk* get_chunk_in_container(struct container* c, fingerprint *fp) {
 	struct metaEntry* me = get_metaentry_in_container_meta(&c->meta, fp);
 
+	/*
+	    char code[41] = {0};
+	    hash2code(fp, code);
+	    printf("get fp:%s from container:%lu\n", code, c->meta.id);
+	*/
 	assert(me);
 
 	struct chunk* ck = new_chunk(me->len);

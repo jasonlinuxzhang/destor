@@ -323,4 +323,13 @@ void hash2code(unsigned char hash[20], char code[40]);
 
 void destor_log(int level, const char *fmt, ...);
 
+struct fid_area{
+    struct fid_area *next;
+    uint64_t start;
+    uint64_t end;
+};
+void init_fid_area();
+void write_fid_area();
+uint64_t alloc_fid();
+
 #endif /* DESTOR_H_ */

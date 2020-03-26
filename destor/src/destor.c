@@ -423,3 +423,107 @@ gint g_fingerprint_cmp(fingerprint* fp1, fingerprint* fp2, gpointer user_data) {
 gint g_chunk_cmp(struct chunk* a, struct chunk* b, gpointer user_data){
 	return memcmp(&a->fp, b->fp, sizeof(fingerprint));
 }
+
+
+
+FILE *fid_area_fp = NULL;
+
+struct fid_area *head = NULL;
+
+FILE *fid_map_fp = NULL;
+char *fid_map_buffer = NULL;
+int32_t buffer_size = 1024;
+int32_t buffer_off = 0;
+
+uint64_t alloc_fid(sds path) {
+    uint64_t fid;
+    if (NULL == head)
+	return 0;
+    fid = head->start++;
+    if (head->start > head->end) {
+	struct fid_area *tmp = head;
+	head = head->next;
+	free(tmp);
+    }
+
+    int32_t path_len = sdslen(path);
+
+    if (buffer_off + sizeof(path_len) +  strlen(path) + sizeof(fid)) {
+	fwrite(fid_map_buffer, buffer_off, 1, fid_map_fp);
+	fid_map_buffer = 0;
+    }
+
+    memcpy(fid_map_buffer + buffer_off, &path_len, sizeof(path_len));
+    buffer_off += sizeof(path_len);
+    memcpy(fid_map_buffer + buffer_off, path, strlen(path));
+    buffer_off += strlen(path);
+    memcpy(fid_map_buffer + buffer_off, &fid, sizeof(fid));
+    buffer_off += sizeof(fid);
+
+    return fid;
+}
+
+void write_fid_area() {
+    fid_area_fp = fopen("/root/destor_test/fid_area", "w");
+    while(NULL != head) {
+	fwrite(head, sizeof(*head), 1, fid_area_fp);
+	head = head->next;
+    }    
+    fclose(fid_area_fp);
+
+    if (buffer_off) {
+	fwrite(fid_map_buffer, buffer_off, 1, fid_map_fp);
+	fid_map_buffer = 0;
+    }
+    fclose(fid_map_fp);
+
+    
+
+}
+
+void init_fid_area() {
+    fid_area_fp = fopen("/root/destor_test/fid_area", "r");
+    if (NULL == fid_area_fp) {
+	printf("fopen fid area failed");
+	head = malloc(sizeof(struct fid_area)); 
+	head->next = NULL;
+	head->start = 1;
+	head->end = 0xffffffffffffffff;
+
+	return;
+    }
+    
+    struct fid_area *node = malloc(sizeof(struct fid_area));   
+    struct fid_area *cur = NULL;
+    while(fread(node, sizeof(*node), 1, fid_area_fp)) {
+	node->next = NULL;
+	if (NULL == head) {
+	    head = node;
+	    cur = node; 
+	} else {
+	    cur->next = node;
+	}
+	node = malloc(sizeof(struct fid_area)); 
+    }
+
+
+    fid_map_buffer = malloc(buffer_size);
+
+    fclose(fid_area_fp);
+
+    int32_t backup_version = 0;
+    FILE *fp = fopen("/root/destor_test/backup_version", "a+");
+    if (NULL != fp) {
+	fseek(fp, 0, SEEK_SET);
+	fread(&backup_version, sizeof(int32_t), 1, fp);
+	backup_version++;
+	fseek(fp, 0, SEEK_SET);
+	fwrite(&backup_version, sizeof(int32_t), 1, fp);
+	fclose(fp);
+    }
+
+    char fid_map_path[128] = {0};
+    sprintf(fid_map_path, "/root/destr_test/fid_map%d", backup_version);
+    fid_map_fp = fopen(fid_map_path, "w");
+}
+

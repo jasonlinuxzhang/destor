@@ -27,6 +27,8 @@ static void read_file(sds path) {
 		exit(1);
 	}
 
+
+
 	struct chunk *c = new_chunk(sdslen(filename) + 1);
 	strcpy(c->data, filename);
 
