@@ -448,9 +448,9 @@ uint64_t alloc_fid(sds path) {
 
     int32_t path_len = sdslen(path);
 
-    if (buffer_off + sizeof(path_len) +  strlen(path) + sizeof(fid)) {
+    if (buffer_off + sizeof(path_len) +  strlen(path) + sizeof(fid) > buffer_size) {
 	fwrite(fid_map_buffer, buffer_off, 1, fid_map_fp);
-	fid_map_buffer = 0;
+	buffer_off = 0;
     }
 
     memcpy(fid_map_buffer + buffer_off, &path_len, sizeof(path_len));
@@ -473,11 +473,9 @@ void write_fid_area() {
 
     if (buffer_off) {
 	fwrite(fid_map_buffer, buffer_off, 1, fid_map_fp);
-	fid_map_buffer = 0;
+	free(fid_map_buffer);
     }
     fclose(fid_map_fp);
-
-    
 
 }
 
@@ -490,7 +488,7 @@ void init_fid_area() {
 	head->start = 1;
 	head->end = 0xffffffffffffffff;
 
-	return;
+	goto step2;
     }
     
     struct fid_area *node = malloc(sizeof(struct fid_area));   
@@ -506,10 +504,11 @@ void init_fid_area() {
 	node = malloc(sizeof(struct fid_area)); 
     }
 
+    fclose(fid_area_fp);
+step2:
 
     fid_map_buffer = malloc(buffer_size);
 
-    fclose(fid_area_fp);
 
     int32_t backup_version = 0;
     FILE *fp = fopen("/root/destor_test/backup_version", "a+");
@@ -523,7 +522,10 @@ void init_fid_area() {
     }
 
     char fid_map_path[128] = {0};
-    sprintf(fid_map_path, "/root/destr_test/fid_map%d", backup_version);
+    sprintf(fid_map_path, "/root/destor_test/fid_map%d", backup_version);
     fid_map_fp = fopen(fid_map_path, "w");
+    if (NULL == fid_map_fp) {
+		printf("fopen %s failed\n", fid_map_path);
+	}
 }
 

@@ -17,6 +17,7 @@ extern struct {
 
 void do_backup(char *path) {
 
+	init_fid_area();
 	init_recipe_store();
 	init_container_store();
 	init_index();
@@ -70,6 +71,7 @@ void do_backup(char *path) {
 
 	free_backup_version(jcr.bv);
 
+	write_fid_area();
 	puts("==== backup end ====");
 
 	printf("job id: %" PRId32 "\n", jcr.id);
